@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>纯文本行情 · 全部自选实时列表（全选看板 / 全表头排序）</title>
+<meta name="description" content="极简纯文本股票行情列表：57只自选实时刷新，全部表头可排序，名称/代码过滤，全市场A股搜索；勾选任意股票加入图文/经典看板，最多12只。" />
+<meta name="keywords" content="股票列表,实时行情,自选股,排序,全市场搜索,纯文本" />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#10121a" />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="kline-board" />
+<meta property="og:title" content="纯文本行情 · 自选实时列表" />
+<meta property="og:description" content="极简实时行情表：全表头排序、过滤、全市场搜索，勾选即加入看板。" />
+<meta name="twitter:card" content="summary" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="text">
+<noscript>
+  <div style="max-width:720px;margin:60px auto;padding:24px;background:#191c27;color:#e9e7e1;border-radius:12px;font-family:sans-serif;line-height:2">
+    <h1>纯文本行情</h1>
+    <p>极简实时行情列表：全表头排序、名称/代码过滤、全市场搜索；勾选任意股票加入看板。需要启用 JavaScript。</p>
+    <p>其它页面：<a href="index.html">图文K线</a> · <a href="cards.html">经典看板</a></p>
+  </div>
+</noscript>
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="index.html">K线<span class="gold">看板</span><span class="ver">v3</span></a>
+    <nav class="tabs">
+      <a class="tab-btn" data-nav="board" href="index.html">🖼️ 图文K线</a>
+      <a class="tab-btn" data-nav="cards" href="cards.html">📊 经典看板</a>
+      <a class="tab-btn" data-nav="text" href="text.html">📝 纯文本</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="status">
+      <span class="mode-badge" id="modeBadge">检测中…</span>
+      <span class="dot" id="dot"></span>
+      <span id="session">--</span>
+      <span id="clock">--:--:--</span>
+      <span>更新 <b id="lastUp">--</b></span>
+      <span>下次 <b id="countdown">--</b>s</span>
+      <button class="btn" id="refreshBtn">刷新</button>
+      <button class="btn ghost" id="settingsBtn">⚙️</button>
+    </div>
+    <div class="banner" id="errBanner" style="display:none"></div>
+  </header>
+
+  <main id="view-text">
+    <div class="text-tools">
+      <div class="searchbox">
+        <input id="searchInput" placeholder="过滤当前列表 / 代理模式下可搜索全市场 A 股，回车选中" />
+        <div class="search-drop" id="searchDrop"></div>
+      </div>
+      <span class="count-chip" id="countChip">-- 只</span>
+      <span class="count-chip" id="selChip">看板 -- 只</span>
+      <button class="btn mini" id="selAllBtn">☑ 全选</button>
+      <button class="btn mini ghost" id="selNoneBtn">✖ 全部取消</button>
+      <button class="btn mini ghost" id="selReset">恢复默认海报股</button>
+      <span class="hint" id="textHint"></span>
+    </div>
+    <div class="tblbox">
+      <table id="tbl">
+        <thead><tr>
+          <th class="selcell selhead" title="全选=按当前排序从第一行起依次加入">
+            <div class="selhead-box">
+              <button class="btn mini ghost selmini" id="headAll">全选</button>
+              <button class="btn mini ghost selmini" id="headNone">不选</button>
+            </div>
+          </th>
+          <th data-k="name">名称</th><th data-k="code">代码</th><th data-k="price">现价</th>
+          <th data-k="chgPct">涨跌幅</th><th data-k="chg">涨跌额</th><th data-k="amplitude">振幅</th>
+          <th data-k="turnoverRate">换手</th><th data-k="turnover">成交额</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer>
+    数据来源：第三方公开行情接口，交易时段约 15 秒刷新；勾选的股票（最多 12 只）即「图文K线」与「经典看板」两个页面的展示内容，选择保存在本机浏览器。<br>
+    本项目仅为行情可视化技术演示，所有数据不构成任何投资建议。
+  </footer>
+</div>
+<script src="js/charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

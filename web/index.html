@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>图文K线看板 · 白马股实时行情海报（双十一风格还原）</title>
+<meta name="description" content="双十一海报风格的股票实时看板：红金主题卡片、划线历史价、实时现价与折扣徽章、公司真实Logo，盘中每15秒刷新，点击卡片查看同花顺风格日K/分时，支持多选自选与竖排/横屏分享海报。" />
+<meta name="keywords" content="股票看板,K线,实时行情,白马股,双十一海报,折扣,公司Logo,分享海报" />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#10121a" />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="kline-board" />
+<meta property="og:title" content="图文K线看板 · 白马股实时行情海报" />
+<meta property="og:description" content="双十一海报风格实时行情：实时现价、折扣徽章、公司Logo、同花顺风格K线，一键生成分享海报与二维码。" />
+<meta name="twitter:card" content="summary" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "图文K线看板",
+  "description": "双十一海报风格的股票实时看板，实时现价与折扣徽章，公司真实Logo，可生成分享海报。",
+  "inLanguage": "zh-CN"
+}
+</script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="board">
+<noscript>
+  <div style="max-width:720px;margin:60px auto;padding:24px;background:#191c27;color:#e9e7e1;border-radius:12px;font-family:sans-serif;line-height:2">
+    <h1>图文K线看板</h1>
+    <p>双十一海报风格的股票实时看板：实时现价、折扣徽章、公司Logo、同花顺风格K线。需要启用 JavaScript 加载数据。</p>
+    <p>其它页面：<a href="cards.html">经典看板</a> · <a href="text.html">纯文本行情</a></p>
+  </div>
+</noscript>
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="index.html">K线<span class="gold">看板</span><span class="ver">v3</span></a>
+    <nav class="tabs">
+      <a class="tab-btn" data-nav="board" href="index.html">🖼️ 图文K线</a>
+      <a class="tab-btn" data-nav="cards" href="cards.html">📊 经典看板</a>
+      <a class="tab-btn" data-nav="text" href="text.html">📝 纯文本</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="status">
+      <span class="mode-badge" id="modeBadge">检测中…</span>
+      <span class="dot" id="dot"></span>
+      <span id="session">--</span>
+      <span id="clock">--:--:--</span>
+      <span>更新 <b id="lastUp">--</b></span>
+      <span>下次 <b id="countdown">--</b>s</span>
+      <button class="btn" id="refreshBtn">刷新</button>
+      <button class="btn ghost" id="posterBtn">🎨 海报</button>
+      <button class="btn ghost" id="shareBtn">🔗 分享</button>
+      <button class="btn ghost" id="settingsBtn">⚙️</button>
+    </div>
+    <div class="banner" id="errBanner" style="display:none"></div>
+  </header>
+
+  <main id="view-board">
+    <div class="poster-sheet">
+      <div class="banner">
+        <h1 id="bnTitle" spellcheck="false"></h1>
+        <div class="ribbon" id="bnSub" spellcheck="false"></div>
+        <div class="banner-edit-tip" id="bnTip">双击标题或副标题可自定义文案（自动保存在本机）</div>
+      </div>
+      <div class="poster-grid" id="posterGrid"></div>
+      <div class="poster-note" id="posterNote"></div>
+    </div>
+  </main>
+
+  <footer>
+    数据来源：第三方公开行情接口，经本机代理/浏览器直连，交易时段约 15 秒刷新；看板内容 = 纯文本页勾选的股票（最多 12 只），历史价/文案均可自定义（仅保存在本机浏览器）。<br>
+    本项目仅为行情可视化技术演示，所有数据与折扣不构成任何投资建议。喜欢请点 Star ⭐
+  </footer>
+</div>
+<script src="js/charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

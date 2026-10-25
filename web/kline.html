@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>K线详情 · 同花顺风格日K/分时</title>
+<meta name="description" content="独立K线页面：同花顺风格日K（MA5/10/20/30、成交量、最新价线、十字光标联动报价、滚轮缩放）与分时（均价线、百分比轴、时段刻度），左侧实时报价与区间统计面板，支持任意A股代码直链分享。" />
+<meta name="keywords" content="K线,分时,MA均线,成交量,十字光标,股票详情,报价面板" />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#10121a" />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="kline-board" />
+<meta property="og:title" content="K线详情" />
+<meta property="og:description" content="同花顺风格日K与分时图，左侧实时报价面板，支持任意A股直链分享。" />
+<meta name="twitter:card" content="summary" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="kline">
+<noscript>
+  <div style="max-width:720px;margin:60px auto;padding:24px;background:#191c27;color:#e9e7e1;border-radius:12px;font-family:sans-serif;line-height:2">
+    <h1>K线详情</h1>
+    <p>同花顺风格日K与分时图页面，通过 ?s=代码&m=市场&t=DAILY|INTRADAY 直链访问。需要启用 JavaScript。</p>
+  </div>
+</noscript>
+
+<main class="kwrap">
+  <div class="kbar">
+    <img class="mlogo" id="mLogo" alt="" /><span class="lchar mlogo" id="mLogoChar" style="display:none"></span>
+    <span class="kname" id="mName">加载中…</span>
+    <span class="sub" id="mCode"></span>
+    <div class="kquote">
+      <b class="price" id="kPrice">--</b>
+      <span class="kchg flat" id="kChg">--</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="tab-mini">
+      <span class="tab on" data-t="DAILY">日 K</span>
+      <span class="tab" data-t="INTRADAY">分时</span>
+    </div>
+    <a class="btn mini ghost" href="index.html">↩ 返回看板</a>
+    <button class="btn mini" id="shareBtn2">🔗 复制链接</button>
+  </div>
+  <div class="banner" id="errBanner" style="display:none"></div>
+
+  <div class="kbody">
+    <aside class="kpanel" id="kPanel"></aside>
+    <section class="kchart">
+      <div id="chartInfo" class="chart-info">--</div>
+      <canvas id="chart"></canvas>
+      <div class="legend">
+        <span><i style="background:#ff4d57"></i>涨</span>
+        <span><i style="background:#22c584"></i>跌</span>
+        <span style="color:#fff">MA5</span><span style="color:#f4d03f">MA10</span><span style="color:#e05ffd">MA20</span><span style="color:#4adfae">MA30</span>
+        <span style="color:#ffd54d">黄线 = 均价（分时）</span>
+        <span>滚轮缩放 · 十字光标悬停查看报价</span>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="js/charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
