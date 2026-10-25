@@ -37,8 +37,8 @@
 ## 🚀 快速开始
 
 ```bash
-git clone https://github.com/<you>/kline-board.git
-cd kline-board
+git clone https://github.com/wuxiumu/chart-demo-for-historical-price.git
+cd chart-demo-for-historical-price
 node server.js          # 或: PORT=9000 node server.js
 # 打开 http://localhost:8787
 ```
