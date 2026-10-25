@@ -766,7 +766,7 @@ const logoImg = (code, cls = "", name = "") =>
   `<img class="${cls}" loading="lazy" src="${logoUrl(code)}" data-remote="${LOGO_REMOTE(code)}" data-name="${esc(name)}" alt="" onerror="${LOGO_ONERR}"><span class="lchar ${cls}" style="display:none">${esc((name || "?")[0])}</span>`;
 
 const DEFAULT_BANNER = { title: "双十一来啦", sub: "白马股秒杀活动正式启动" };
-const LS = { token: "kb_token", banner: "kb_banner", custom: "kb_custom", sel: "kb_sel", wl: "kb_watchlist" };
+const LS = { token: "kb_token", banner: "kb_banner", custom: "kb_custom", sel: "kb_sel", wl: "kb_watchlist", cache: "kb_cache" };
 const SEL_MAX = 12;
 function getSel() {
   const sel = store.get(LS.sel, null);
@@ -800,6 +800,35 @@ const store = {
   set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
   del(k) { localStorage.removeItem(k); },
 };
+
+/* 前端持久缓存：实时拉取失败自动回退；启动先用缓存即时渲染，提升页面来回切换性能 */
+const cache = {
+  data: store.get(LS.cache, { daily: {}, wl: null }),
+  timer: null,
+  staleHit: false,
+  putDaily(code, bars) {
+    this.data.daily[code] = { t: Date.now(), bars: bars.slice(-260) };
+    this.schedule();
+  },
+  getDaily(code) { const e = this.data.daily[code]; return e ? e.bars : null; },
+  putWL(data) { this.data.wl = { t: Date.now(), data }; this.schedule(); },
+  getWL() { const e = this.data.wl; return e ? e.data : null; },
+  schedule() {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 3000);
+  },
+  flush() {
+    clearTimeout(this.timer); this.timer = null;
+    // 容量裁剪：超过 40 只时淘汰最旧的
+    const keys = Object.keys(this.data.daily);
+    if (keys.length > 40) {
+      keys.sort((a, b) => (this.data.daily[a].t || 0) - (this.data.daily[b].t || 0));
+      for (const k of keys.slice(0, keys.length - 40)) delete this.data.daily[k];
+    }
+    try { store.set(LS.cache, this.data); } catch (e) { /* 配额满则放弃本次 */ }
+  },
+};
+window.addEventListener("pagehide", () => cache.flush());
 
 const state = {
   mode: "detect",
@@ -880,7 +909,15 @@ const api = {
   },
 };
 async function fetchKline(market, code, type = "DAILY") {
-  const raw = await api.klineRaw(market, code, type);
+  let raw, fromCache = false;
+  try {
+    raw = await api.klineRaw(market, code, type);
+  } catch (e) {
+    // 实时异常 → 回退本地持久缓存；缓存也没有才向上抛（页面显示异常）
+    const cached = type === "DAILY" ? cache.getDaily(code) : null;
+    if (!cached || cached.length < 2) throw e;
+    raw = cached; fromCache = true;
+  }
   if (type === "INTRADAY") {
     // 上游实时动态点时间戳为毫秒、历史分钟点为秒 → 统一秒；过滤脏点
     const arr = raw.filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[4]))
@@ -889,6 +926,8 @@ async function fetchKline(market, code, type = "DAILY") {
     state.intraday[code] = arr;
   } else {
     state.daily[code] = raw;
+    if (fromCache) cache.staleHit = true;
+    else cache.putDaily(code, raw);
   }
   return raw;
 }
@@ -1774,7 +1813,15 @@ function setBanner(msg) {
 }
 async function loadCore(showToast) {
   if (PAGE === "kline") return;
-  const wl = await api.stockList();
+  let wl = null;
+  try {
+    wl = await api.stockList();
+    cache.putWL(wl);
+  } catch (e) {
+    const cachedWL = cache.getWL();
+    if (cachedWL && cachedWL.length) { wl = cachedWL; cache.staleHit = true; }
+    else throw e;
+  }
   state.watchlist = wl;
   await ensureBars(getSel(), !showToast);
   if (PAGE === "text") await Promise.allSettled(STOCKS.map((s) => fetchKline(s.market, s.code, "DAILY")));
@@ -1782,6 +1829,7 @@ async function loadCore(showToast) {
 }
 async function refresh() {
   if (state.mode === "demo") return;
+  cache.staleHit = false;
   try {
     if (PAGE === "kline") {
       const mkt = state.klineMarket, code = state.modal;
@@ -1795,7 +1843,7 @@ async function refresh() {
     }
     state.errStreak = 0;
     if ($("#dot")) $("#dot").className = "dot ok";
-    setBanner("");
+    setBanner(cache.staleHit ? "⚠ 部分数据来自本地缓存（实时接口暂时不可用），将持续自动重试" : "");
     if ($("#lastUp")) $("#lastUp").textContent = shNow().hms;
   } catch (e) {
     state.errStreak++;
@@ -1916,6 +1964,15 @@ function updateKlineMeta() {
 (async function boot() {
   try {
   injectChrome();
+  window.__bootStep = "cache";
+  // 启动即用水久缓存：页面来回切换零等待（随后实时刷新覆盖）
+  const cachedWL = cache.getWL();
+  if (cachedWL && cachedWL.length) { state.watchlist = cachedWL; rebuildRows(); }
+  for (const s of getSel()) {
+    const b = cache.getDaily(s.code);
+    if (b) state.daily[s.code] = b;
+  }
+  if (PAGE !== "kline") renderPageView();
   window.__bootStep = "chrome";
   state.modeInfo = await detectMode();
   window.__bootStep = "mode";
