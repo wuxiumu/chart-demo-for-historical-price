@@ -39,11 +39,20 @@
 ```bash
 git clone https://github.com/wuxiumu/chart-demo-for-historical-price.git
 cd chart-demo-for-historical-price
-node server.js          # 或: PORT=9000 node server.js
+./kline.sh start          # 启动（停止/重启/状态：stop | restart | status）
 # 打开 http://localhost:8787
 ```
 
+解锁实时行情（二选一）：
+
+```bash
+YJNT_TOKEN=eyJhbGci... ./kline.sh start   # 启动时注入
+# 或页面右上角 ⚙️ 里粘贴 token（存本机 localStorage）
+```
+
 没有 Node？`python3 -m http.server -d web 8000` 也能跑（仅演示模式）。
+
+服务管理脚本 `./kline.sh` 支持 `start` / `stop` / `restart` / `status`，带 PID 文件与日志（`server.log`），`PORT` / `YJNT_TOKEN` 环境变量透传。
 
 ### 📦 打包成单个 HTML 文件
 
@@ -84,6 +93,7 @@ token 只保存在你本机（localStorage / 环境变量），请勿提交到�
 
 ```
 ├── server.js              # 可选：静态托管 + 接口反代（注入 token / 全市场搜索）
+├── kline.sh               # 服务管理：./kline.sh {start|stop|restart|status}
 ├── dist/
 │   └── kline-board.html   # 打包产物：单文件纯 HTML（node scripts/build-single.js 生成）
 ├── scripts/
