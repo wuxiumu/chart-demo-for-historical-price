@@ -34,20 +34,12 @@ const cached = (k, ttl) => {
 };
 const store = (k, body) => cache.set(k, { t: Date.now(), body });
 
-// 跨域：默认由本服务统一输出 ACAO:*；若 nginx 已配跨域，请设 DISABLE_CORS=1 关闭本层，
-// 否则响应会带两个 Access-Control-Allow-Origin，浏览器将报 "multiple values" 而拒绝
-const DISABLE_CORS = process.env.DISABLE_CORS === '1';
-const corsHeaders = () => DISABLE_CORS ? {} : {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// 跨域统一由 nginx 处理，本服务不再输出任何 CORS 头（两层叠加会导致浏览器报 multiple values 拒绝）
 
 function send(res, status, body, type) {
   res.writeHead(status, {
     'Content-Type': type || 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    ...corsHeaders(),
   });
   res.end(body);
 }
@@ -79,9 +71,9 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
-  // 预检请求直接短路（三方页面若发起带自定义头的请求会先 OPTIONS）
+  // 预检请求直接短路（CORS 头由 nginx 补）
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, { ...corsHeaders(), 'Access-Control-Max-Age': '86400' });
+    res.writeHead(204, { 'Access-Control-Max-Age': '86400' });
     return res.end();
   }
 
@@ -150,5 +142,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`K线看板已启动: http://localhost:${PORT}${TOKEN ? '' : '（未设置 YJNT_TOKEN，代理将依赖前端 token / 演示模式）'}${DISABLE_CORS ? '（跨域头已关闭，由 nginx 统一处理）' : ''}`);
+  console.log(`K线看板已启动: http://localhost:${PORT}${TOKEN ? '' : '（未设置 YJNT_TOKEN，代理将依赖前端 token / 演示模式）'}`);
 });
