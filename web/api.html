@@ -8,6 +8,13 @@
 <meta name="keywords" content="K线 API,股票行情接口,日K数据,分时数据,五档盘口,逐笔成交,AI 接入" />
 <meta name="robots" content="index,follow" />
 <meta name="theme-color" content="#10121a" />
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "x6yi4c0dyf");
+</script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <style>
   :root { --bg:#10121a; --card:#191c27; --card2:#141721; --line:#2a2e3f; --gold:#d9a441; --txt:#e9e7e1; --muted:#8b90a5; --up:#ff4d57; }
@@ -35,6 +42,12 @@
   td code { white-space: nowrap; }
   .foot { margin-top: 46px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 14px; }
   .md-hint { background: rgba(34,197,132,.08); border: 1px solid rgba(34,197,132,.3); }
+  .prompt-box { background: var(--card); border: 1px solid rgba(217,164,65,.45); border-radius: 12px; padding: 14px 16px; margin: 0 0 8px; }
+  .prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; font-weight: 700; font-size: 14.5px; }
+  .copy-btn { background: var(--gold); color: #1a1408; border: 0; border-radius: 8px; padding: 7px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+  .copy-btn:hover { filter: brightness(1.08); }
+  .prompt-box pre { margin: 0 0 10px; white-space: pre-wrap; }
+  .prompt-tips { color: var(--muted); font-size: 12.5px; line-height: 1.8; }
 </style>
 </head>
 <body>
@@ -50,9 +63,48 @@
     数据为第三方公开行情的整理展示，仅供研究与可视化演示，不构成任何投资建议。
   </div>
   <div class="note md-hint">
-    🤖 <b>AI 快速接入：</b>直接抓取纯文本文档 <a href="api.md"><code>api.md</code></a>（本页的 Markdown 版，含字段字典与调用示例），
-    或在提示词中写明「请阅读 <code>&lt;站点地址&gt;/api.md</code> 并按文档调用接口」。
+    🤖 <b>AI 快速接入：</b>直接抓取纯文本文档 <a href="api.md"><code>api.md</code></a>（本页的 Markdown 版，含字段字典与调用示例）。
+    点下面按钮复制提示词，粘贴给豆包 / ChatGPT / Kimi 等 AI，即可让它按文档调用本站接口画出 K 线图。
   </div>
+
+  <div class="prompt-box">
+    <div class="prompt-head">
+      <span>📋 一键复制 AI 提示词（自动带上当前部署域名）</span>
+      <button id="copyPrompt" class="copy-btn">复制提示词</button>
+    </div>
+    <pre id="promptText"></pre>
+    <div class="prompt-tips">
+      换股票：改提示词里的代码与市场（<code>17</code> 沪 / <code>33</code> 深）。
+      换任务：把「日K蜡烛图」换成「分时图 /api/kline?type=INTRADAY」「五档盘口 /api/quote5」「逐笔成交 /api/trace」等文档里的任意接口。
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var origin = location.origin;
+      var prompt = "请先用网页阅读能力读取这个接口文档：" + origin + "/api.md\n" +
+        "然后严格按文档调用本站接口：获取股票 600519（market=17）的日K数据（GET /api/kline?market=17&code=600519&type=DAILY），\n" +
+        "用返回的 klineData 画一张近 120 日的K线蜡烛图（单文件 HTML+JS），标注 MA5/MA10 均线与最新价格，并给出近 20 日涨跌幅统计。";
+      var pre = document.getElementById("promptText");
+      pre.textContent = prompt;
+      document.getElementById("copyPrompt").addEventListener("click", function () {
+        var done = function () {
+          var b = document.getElementById("copyPrompt");
+          b.textContent = "✓ 已复制，去粘贴给 AI";
+          setTimeout(function () { b.textContent = "复制提示词"; }, 2200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(prompt).then(done, function () { fallback(); });
+        } else fallback();
+        function fallback() {
+          var ta = document.createElement("textarea");
+          ta.value = prompt; document.body.appendChild(ta); ta.select();
+          try { document.execCommand("copy"); done(); } catch (e) { pre.textContent = prompt; }
+          document.body.removeChild(ta);
+        }
+      });
+    })();
+  </script>
 
   <h2>基本信息</h2>
   <ul>
@@ -118,5 +170,6 @@
     本项目仅为行情可视化技术演示，所有接口数据不构成任何投资建议 · <a href="index.html">图文K线</a> · <a href="cards.html">经典看板</a> · <a href="text.html">纯文本行情</a>
   </div>
 </div>
+<script src="https://vbank8-test.oss-cn-beijing.aliyuncs.com/static/wuqingbao/ad.js"></script>
 </body>
 </html>
