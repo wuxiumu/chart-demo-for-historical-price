@@ -247,19 +247,25 @@ async function searchMarket(q) {
 /* ================= 交易时段（Asia/Shanghai） ================= */
 function shNow() {
   const p = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Shanghai", hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit",
     weekday: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date());
   const get = (t) => p.find((x) => x.type === t)?.value || "";
   const hm = (+get("hour") % 24) * 60 + +get("minute");
   const wd = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[get("weekday")] ?? 0;
   const inSession = wd >= 1 && wd <= 5 && ((hm >= 565 && hm <= 691) || (hm >= 775 && hm <= 905));
-  return { inSession, hms: `${get("hour")}:${get("minute")}:${get("second")}` };
+  const hms = `${get("hour")}:${get("minute")}:${get("second")}`;
+  return { inSession, hms, full: `${get("year")}-${get("month")}-${get("day")} ${hms}` };
 }
 const nextDelay = () => (shNow().inSession ? 15000 : 120000);
 
 /* ================= 行情汇总 ================= */
 function statFromBars(bars) {
   if (!bars || bars.length < 2) return null;
-  const n = bars.length, last = bars[n - 1], prev = bars[n - 2];
+  const last = bars[bars.length - 1];
+  // 上游在非交易日会把最后一根复制一份（同日期假 bar）→ 昨收须取上一根“不同日期”的 bar，否则涨跌恒为 0
+  let prev = null;
+  for (let i = bars.length - 2; i >= 0; i--) if (bars[i][0] !== last[0]) { prev = bars[i]; break; }
+  if (!prev) return null;
   const price = last[4], prevClose = prev[4] || last[4];
   return { price, prevClose, open: last[1], high: last[2], low: last[3],
     chg: price - prevClose, chgPct: (price / prevClose - 1) * 100,
@@ -358,7 +364,7 @@ function renderBoard() {
   }
   const up = shNow();
   $("#posterNote").innerHTML =
-    `价格截至 <b>${up.hms}</b> · 单位：元/股 · 盘中实时刷新 · 公司 Logo 来自公开数据<br>` +
+    `价格截至 <b>${up.full}</b> · 单位：元/股 · 盘中实时刷新 · 公司 Logo 来自公开数据<br>` +
     `历史价可在卡片上自定义（默认取海报基准或区间最高） · <b>折扣 = 现价 ÷ 历史价 × 10</b><br>` +
     `数据源：第三方公开行情接口 · 价格回落不代表估值便宜，不构成投资建议`;
 }
@@ -1074,7 +1080,7 @@ async function drawPoster() {
   ctx.textAlign = "left";
   const up = shNow();
   const footLines = [
-    `价格截至 ${up.hms} · 单位：元/股 · 折扣 = 现价 ÷ 历史价 × 10`,
+    `价格截至 ${up.full} · 单位：元/股 · 折扣 = 现价 ÷ 历史价 × 10`,
     `历史价取海报基准或区间最高（口径详见项目说明）`,
     `价格回落不代表估值便宜 · 不构成投资建议`,
   ];
@@ -1099,7 +1105,7 @@ function setBanner(msg) {
   if (!msg) { b.style.display = "none"; return; }
   b.style.display = "block"; b.textContent = msg;
 }
-async function loadCore(showToast) {
+async function loadCore() {
   if (PAGE === "kline") return;
   let wl = null;
   try {
@@ -1111,7 +1117,8 @@ async function loadCore(showToast) {
     else throw e;
   }
   state.watchlist = wl;
-  await ensureBars(getSel(), !showToast);
+  // 每轮都实拉日K：磁盘缓存只负责启动提速与异常回退，命中缓存也不能让看板停在上一交易日的旧数据
+  await Promise.allSettled(getSel().map((x) => fetchKline(x.market, x.code, "DAILY")));
   if (PAGE === "text") await Promise.allSettled(STOCKS.map((s) => fetchKline(s.market, s.code, "DAILY")));
   rebuildRows();
 }
@@ -1127,7 +1134,7 @@ async function refresh() {
         updateKlineMeta();
       }
     } else {
-      await loadCore(false);
+      await loadCore();
     }
     state.errStreak = 0;
     if ($("#dot")) $("#dot").className = "dot ok";
@@ -1290,7 +1297,7 @@ function updateKlineMeta() {
   } else {
     // 看门狗：单个上游请求挂起也不能阻塞整页启动（15 秒后强制进入轮询节奏，由 refresh 重试）
     await Promise.race([
-      loadCore(true).catch((e) => {
+      loadCore().then(() => { if ($("#lastUp")) $("#lastUp").textContent = shNow().hms; }).catch((e) => {
         setBanner(`数据加载失败：${e.message} —— 若持续失败，可能是 token 过期：点右上角 ⚙️ 更新。`);
         if ($("#dot")) $("#dot").className = "dot err";
       }),
