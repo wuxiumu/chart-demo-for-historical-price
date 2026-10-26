@@ -19,9 +19,9 @@ do_start() {
   fi
   echo "启动中…"
   if [ -n "${YJNT_TOKEN:-}" ]; then
-    nohup env PORT="$PORT" YJNT_TOKEN="$YJNT_TOKEN" node server.js >> "$LOG_FILE" 2>&1 &
+    nohup env PORT="$PORT" YJNT_TOKEN="$YJNT_TOKEN" ${DISABLE_CORS:+DISABLE_CORS="$DISABLE_CORS"} node server.js >> "$LOG_FILE" 2>&1 &
   else
-    nohup env PORT="$PORT" node server.js >> "$LOG_FILE" 2>&1 &
+    nohup env PORT="$PORT" ${DISABLE_CORS:+DISABLE_CORS="$DISABLE_CORS"} node server.js >> "$LOG_FILE" 2>&1 &
   fi
   echo $! > "$PID_FILE"
   sleep 1
