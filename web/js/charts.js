@@ -213,8 +213,17 @@ function drawIntradayTHS() {
   let min = Math.min(...closes, ...avg, prevClose || Infinity), max = Math.max(...closes, ...avg, prevClose || -Infinity);
   const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
   const mid = prevClose || (min + max) / 2;
-  const span = Math.max(pts[pts.length - 1][0] - pts[0][0], 300);
-  const X = (t) => padL + ((t - pts[0][0]) / span) * (w - padL - padR);
+  // X 轴固定全天 240 分钟（09:30-11:30 / 13:00-15:00，午休压缩）：数据画到当前时刻，右侧留白；
+  // 若按已有数据的时间跨度拉伸，盘中看会失真（11:20 被拉到 15:00 的位置）
+  const mins = pts._mins || (pts._mins = pts.map((p) => {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Shanghai", hourCycle: "h23", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(p[0] * 1000));
+    const get = (t) => +((parts.find((x) => x.type === t) || {}).value || 0);
+    const hm = get("hour") * 60 + get("minute");
+    return Math.max(0, Math.min(240, hm < 780 ? hm - 570 : 120 + hm - 780)); // 09:30=570, 13:00=780
+  }));
+  const X = (m) => padL + (m / 240) * (w - padL - padR);
+  const MX = (i) => X(mins[i]);
   const Y = (v) => padT + (max - v) / (max - min) * priceH;
   const VY = (v) => padT + priceH + gap + volH - (v / Math.max(...pts.map((p) => p[5] || 0)) || 1) * volH;
   const volTop = padT + priceH + gap;
@@ -233,40 +242,42 @@ function drawIntradayTHS() {
     ctx.fillText((p > 0 ? "+" : "") + p.toFixed(2) + "%", padL - 4, yy + 3);
     ctx.textAlign = "left"; ctx.fillText(fmt(v), w - padR + 6, yy + 3);
   }
-  // 时间轴刻度：上午/午休/下午
+  // 时间轴刻度：上午/午休/下午（按全天 240 分钟精确定位）
   ctx.fillStyle = "#6a7089"; ctx.textAlign = "center";
-  const labels = [[0, "09:30"], [0.5, "10:30"], [0.83, "11:30/13:00"], [0.92, "14:00"], [1, "15:00"]];
-  for (const [f, txt] of labels) ctx.fillText(txt, padL + f * (w - padL - padR), h - 4);
+  const labels = [[0, "09:30"], [60, "10:30"], [120, "11:30/13:00"], [180, "14:00"], [240, "15:00"]];
+  for (const [m, txt] of labels) ctx.fillText(txt, X(m), h - 4);
   // 成交量
   pts.forEach((p, i) => {
     if (!p[5]) return;
     const col = i ? (p[4] >= pts[i - 1][4] ? "#ff4d57" : "#22c584") : "#8a8fa3";
     ctx.fillStyle = col; ctx.globalAlpha = .5;
-    const bx = X(p[0]);
-    ctx.fillRect(bx - 1, padT + priceH + gap + volH - (p[5] / maxVol) * volH, 2, (p[5] / maxVol) * volH);
+    const bx = MX(i);
+    ctx.fillRect(bx - 1.5, padT + priceH + gap + volH - (p[5] / maxVol) * volH, 3, (p[5] / maxVol) * volH);
     ctx.globalAlpha = 1;
   });
   // 均价线（黄）+ 价格线（白）
   const line = (arr, color, width) => {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
-    arr.forEach((v, i) => (i ? ctx.lineTo(X(pts[i][0]), Y(v)) : ctx.moveTo(X(pts[i][0]), Y(v))));
+    arr.forEach((v, i) => (i ? ctx.lineTo(MX(i), Y(v)) : ctx.moveTo(MX(i), Y(v))));
     ctx.stroke();
   };
   line(avg, "#ffd54d", 1);
   line(closes, "#e9e7e1", 1.4);
-  // 最新价标签
+  // 最新价虚线贯穿全宽 + 右侧价格标签
   const lc = closes[closes.length - 1];
+  ctx.strokeStyle = "rgba(233,231,225,.5)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, Y(lc)); ctx.lineTo(w - padR, Y(lc)); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle = "#39415c"; ctx.fillRect(w - padR + 1, Y(lc) - 8, padR - 4, 16);
   ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.fillText(fmt(lc), w - padR + 5, Y(lc) + 3);
   // 十字光标
   const ci = state.cross;
   if (ci != null && ci >= 0 && ci < pts.length) {
     ctx.strokeStyle = "#8a8fa3"; ctx.setLineDash([4, 3]);
-    ctx.beginPath(); ctx.moveTo(X(pts[ci][0]), padT); ctx.lineTo(X(pts[ci][0]), volTop + volH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(MX(ci), padT); ctx.lineTo(MX(ci), volTop + volH); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(padL, Y(pts[ci][4])); ctx.lineTo(w - padR, Y(pts[ci][4])); ctx.stroke();
     ctx.setLineDash([]);
   }
-  cv._intra = { pts, avg, X };
+  cv._intra = { pts, avg, MX };
 }
 function updateIntraInfo(hoverIdx) {
   const code = state.modal, pts = state.intraday[code];

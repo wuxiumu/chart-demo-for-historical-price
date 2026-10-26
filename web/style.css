@@ -318,11 +318,32 @@ th.logo-head { width: 64px; }
 .kchart { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .kchart #chart { flex: 1; min-height: 320px; width: 100%; }
 .kchart .legend { margin-top: 6px; }
+
+/* 右侧栏：五档盘口 + 成交明细 */
+.kside { width: 196px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.kside-h { font-size: 12px; color: var(--muted); text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 5px 0; font-weight: 600; }
+.q5 { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 13px; }
+.q5 .row { display: flex; align-items: center; gap: 8px; padding: 3.5px 0; font-variant-numeric: tabular-nums; }
+.q5 .lab { color: var(--muted); width: 30px; }
+.q5 .prc { flex: 1; text-align: left; font-weight: 600; }
+.q5 .vol { color: var(--muted); text-align: right; font-size: 12px; }
+.q5 .up { color: var(--up); } .q5 .down { color: var(--down); }
+.trace { flex: 1; min-height: 0; overflow-y: auto; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 12px; }
+.trace .row { display: grid; grid-template-columns: 46px 1fr 36px; gap: 6px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.trace .tm { color: var(--muted); }
+.trace .prc { text-align: right; font-weight: 600; }
+.trace .vl { text-align: right; color: var(--muted); }
+.trace .up { color: var(--up); } .trace .down { color: var(--down); }
+.trace-empty { color: var(--muted); text-align: center; padding: 18px 0; }
+/* 日K 视图：隐藏左右面板，K线图占满整行 */
+body.kdaily .kpanel, body.kdaily .kside { display: none; }
 @media (max-width: 900px) {
   .kwrap { height: auto; }
   .kbody { flex-direction: column; }
   .kpanel { width: auto; }
   .kchart #chart { height: 56vh; flex: none; }
+  .kside { width: auto; }
+  .trace { max-height: 260px; }
 }
 #chart { cursor: crosshair; }
 

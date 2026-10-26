@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>API 接口文档 · K线看板（AI / 程序接入）</title>
+<meta name="description" content="K线看板对外行情 API 文档：自选股实时快照、日K/分时K线、五档盘口、逐笔成交、全市场股票搜索。免鉴权 JSON 接口，支持跨域，供 AI 助手与程序化接入使用。" />
+<meta name="keywords" content="K线 API,股票行情接口,日K数据,分时数据,五档盘口,逐笔成交,AI 接入" />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#10121a" />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<style>
+  :root { --bg:#10121a; --card:#191c27; --card2:#141721; --line:#2a2e3f; --gold:#d9a441; --txt:#e9e7e1; --muted:#8b90a5; --up:#ff4d57; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: radial-gradient(1200px 500px at 50% -100px, #241827 0%, var(--bg) 55%); color: var(--txt); font: 15px/1.75 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 18px 60px; }
+  a { color: var(--gold); text-decoration: none; }
+  .top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .logo { font-size: 22px; font-weight: 800; color: var(--txt); }
+  .logo b { color: var(--gold); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; color: var(--muted); font-size: 13px; margin: 14px 0 26px; }
+  .note b { color: var(--txt); }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-left: 10px; border-left: 3px solid var(--gold); }
+  h3 { font-size: 15px; margin: 18px 0 6px; color: var(--gold); }
+  p, li { color: #c9cdd9; }
+  ul { padding-left: 22px; }
+  code { background: #232738; border-radius: 5px; padding: 1px 7px; font-size: 13px; font-family: ui-monospace, Menlo, Consolas, monospace; color: #ffd54d; }
+  pre { background: #0c0e16; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+  pre code { background: none; padding: 0; color: #c9cdd9; font-size: 12.5px; line-height: 1.6; }
+  .ep { display: inline-block; font-family: ui-monospace, Menlo, monospace; font-size: 14px; font-weight: 700; background: rgba(217,164,65,.12); border: 1px solid rgba(217,164,65,.4); color: var(--gold); border-radius: 8px; padding: 2px 12px; margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 7px 11px; text-align: left; }
+  th { background: var(--card); color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td code { white-space: nowrap; }
+  .foot { margin-top: 46px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .md-hint { background: rgba(34,197,132,.08); border: 1px solid rgba(34,197,132,.3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="logo" href="index.html">K线<b>看板</b></a>
+    <span class="sub">API 接口文档 · 供 AI 助手 / 程序接入</span>
+    <span class="sub"><a href="index.html">← 返回看板</a></span>
+  </div>
+
+  <div class="note">
+    <b>本页描述本站对外提供的全部行情查询接口</b>：免鉴权、JSON（UTF-8）、支持跨域（CORS *）。
+    数据为第三方公开行情的整理展示，仅供研究与可视化演示，不构成任何投资建议。
+  </div>
+  <div class="note md-hint">
+    🤖 <b>AI 快速接入：</b>直接抓取纯文本文档 <a href="api.md"><code>api.md</code></a>（本页的 Markdown 版，含字段字典与调用示例），
+    或在提示词中写明「请阅读 <code>&lt;站点地址&gt;/api.md</code> 并按文档调用接口」。
+  </div>
+
+  <h2>基本信息</h2>
+  <ul>
+    <li>Base URL：<code>http://localhost:8787</code>（默认本地端口，实际部署替换为站点地址）</li>
+    <li>统一响应：<code>{ "code": 200, "msg": "ok", "data": … }</code>，<code>code === 200</code> 为成功</li>
+    <li>市场代码：<code>market=17</code> 沪市 · <code>market=33</code> 深市；股票代码为 6 位数字</li>
+    <li>限频建议：单接口 ≤ 1 次/秒；盘中约 5~15 秒更新一轮，非交易时段无新数据</li>
+    <li>交易时段（Asia/Shanghai）：周一至周五 09:25–11:31、12:55–15:05</li>
+  </ul>
+
+  <h2>1. 服务健康检查</h2>
+  <span class="ep">GET /api/health</span>
+  <pre><code>{ "code": 200, "msg": "ok", "hasToken": true, "ts": 1792983149108 }</code></pre>
+  <p><code>hasToken=false</code> 时行情数据通道未配置，/api/stock-list 与 /api/kline 可能不可用。</p>
+
+  <h2>2. 自选股实时快照</h2>
+  <span class="ep">GET /api/stock-list</span>
+  <p>看板全部自选股实时报价。<b>非交易时段可能返回空数组</b>。主要字段：<code>stockCode / stockName / market / currentPrice / changePrice / changePercent / openPrice / highPrice / lowPrice / prevClose / fluctuationPercent(振幅) / volume / turnover(成交额) / turnoverRate</code>。</p>
+
+  <h2>3. K线数据（日K / 分时）</h2>
+  <span class="ep">GET /api/kline?market=17&amp;code=600519&amp;type=DAILY&amp;adj=1</span>
+  <table>
+    <tr><th>参数</th><th>说明</th></tr>
+    <tr><td><code>market</code></td><td>17 沪 / 33 深，默认 17</td></tr>
+    <tr><td><code>code</code></td><td>6 位代码，必填</td></tr>
+    <tr><td><code>type</code></td><td><code>DAILY</code> 日K（默认）/ <code>INTRADAY</code> 当日 1 分钟分时</td></tr>
+    <tr><td><code>adj</code></td><td>1 前复权（默认）/ 0 不复权，仅 DAILY 生效</td></tr>
+  </table>
+  <p>响应 <code>data[0].klineData</code> 为数组套数组，每根 K 线长度 10：</p>
+  <pre><code>[20260105, 1325.4, 1341.98, 1324.79, 1337.02, 17400000, 23250000000, 2.02, 0.15, null]
+  日期      开       高       低      收      成交量     成交额(元)   涨跌额 涨跌%  预留</code></pre>
+  <ul>
+    <li>DAILY 日期为 <code>YYYYMMDD</code> 数字（2025 年初起约 435 根）；INTRADAY 下标 0 为 Unix <b>秒</b>时间戳，<b>仅最后一个动态点为毫秒</b>（&gt;1e12 时 ÷1000）</li>
+    <li>成交量单位注意：DAILY 历史 bar 为「股」，盘中最后一根动态 bar 可能为「手」，可用 <code>量×收盘价 ≈ 额</code> 判定（成立为股，差 100 倍为手）</li>
+    <li>昨收取「上一根<b>不同日期</b>」的收盘价——非交易日最后一根可能被复制，直接取倒数第二根会得到假 0 涨跌</li>
+  </ul>
+
+  <h2>4. 五档盘口</h2>
+  <span class="ep">GET /api/quote5?market=17&amp;code=600519</span>
+  <p>响应 <code>data.quote_data[0]</code> 含 <code>data_fields</code>（字段名数组）与 <code>value[0]</code>（数值），<b>必须按字段名对位取值</b>（顺序不保证）：</p>
+  <table>
+    <tr><th>字段名</th><th>含义</th></tr>
+    <tr><td><code>24/26/28/150/154</code> + <code>25/27/29/151/155</code></td><td>买1–买5 价格 / 挂单量（股，÷100=手）</td></tr>
+    <tr><td><code>30/32/34/152/156</code> + <code>31/33/35/153/157</code></td><td>卖1–卖5 价格 / 挂单量（股，÷100=手）</td></tr>
+  </table>
+
+  <h2>5. 当日逐笔成交明细</h2>
+  <span class="ep">GET /api/trace?market=17&amp;code=600519</span>
+  <p>响应 <code>data.quote_data[0].value</code> 为最近 100 笔，每笔 <code>[毫秒时间戳, 成交价, 方向, 当日累计量(股), 单笔量(股)]</code>；方向 <code>1</code> 买盘 / <code>2</code> 卖盘 / <code>3</code> 中性；单笔量 ≥100 时 ÷100 显示为「手」。</p>
+
+  <h2>6. 股票搜索（全市场联想）</h2>
+  <span class="ep">GET /api/search?q=茅台</span>
+  <p>按代码 / 名称 / 拼音联想，最多 10 条：<code>[{ code, name, market, label }]</code>，可用其中的 <code>code + market</code> 直接调用上面的行情接口。</p>
+
+  <h2>典型调用流程</h2>
+  <ul>
+    <li><code>/api/health</code> 确认服务可用 → <code>/api/search</code> 定位股票 → <code>/api/kline?type=DAILY</code> 取日K（最新有效 bar 收盘即现价）</li>
+    <li>盘中补充 <code>type=INTRADAY</code>、<code>/api/quote5</code>、<code>/api/trace</code>，5 秒级轮询即可</li>
+    <li>失败请读取 <code>code</code> 与 <code>msg</code>，至少等待一个刷新周期后再重试，勿盲目高频请求</li>
+  </ul>
+
+  <div class="foot">
+    本项目仅为行情可视化技术演示，所有接口数据不构成任何投资建议 · <a href="index.html">图文K线</a> · <a href="cards.html">经典看板</a> · <a href="text.html">纯文本行情</a>
+  </div>
+</div>
+</body>
+</html>

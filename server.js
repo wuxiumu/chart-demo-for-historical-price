@@ -22,6 +22,8 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };
 
@@ -64,7 +66,7 @@ async function proxyJSON(res, url, options, cacheKey, ttl) {
   }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
@@ -91,6 +93,36 @@ const server = http.createServer((req, res) => {
     if (!q) return send(res, 200, JSON.stringify({ code: 200, data: [] }));
     const qs = new URLSearchParams({ query: q, associate: '1', json: '1', isrealcode: '1' });
     return proxyJSON(res, `${SEARCH_UPSTREAM}/dapanv3/quota/stockDictSearch?${qs}`, { method: 'GET' }, `search:${q}`, 60000);
+  }
+
+  // 五档盘口 / 成交明细（dapanv3 免鉴权；响应无 code 字段，归一化为 code:200 供前端 getJSON 使用）
+  if (p === '/api/quote5' || p === '/api/trace') {
+    const market = url.searchParams.get('market') || '17';
+    const code = url.searchParams.get('code') || '';
+    if (!/^\d{6}$/.test(code)) return send(res, 400, JSON.stringify({ code: 400, msg: 'code 参数非法' }));
+    const body = p === '/api/quote5'
+      ? { code_list: [{ market, codes: [code] }], trade_class: 'intraday',
+          data_fields: ['24', '25', '26', '27', '28', '29', '150', '151', '154', '155', '30', '31', '32', '33', '34', '35', '152', '153', '156', '157'] }
+      : { code_list: [{ market, codes: [code] }], time_range: { type: 'end_count', count: 100, end_time: 0 } };
+    const upstream = p === '/api/quote5'
+      ? `${SEARCH_UPSTREAM}/dapanv3/quota/aQuoteMultiLastCalc`
+      : `${SEARCH_UPSTREAM}/dapanv3/common-hq/quote/v1/single_trace`;
+    try {
+      const key = `${p}:${market}:${code}`;
+      const hit = cached(key, 5000);
+      if (hit) return send(res, 200, hit);
+      const r = await fetch(upstream, { method: 'POST', body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' } });
+      const j = await r.json().catch(() => null);
+      if (r.status !== 200 || !j || j.status_code !== 0)
+        return send(res, 502, JSON.stringify({ code: 502, msg: '盘口上游异常 ' + ((j && j.status_msg) || r.status) }));
+      const out = JSON.stringify({ code: 200, msg: 'ok', data: j.data });
+      store(key, out);
+      send(res, 200, out);
+    } catch (e) {
+      send(res, 502, JSON.stringify({ code: 502, msg: '代理请求失败: ' + e.message }));
+    }
+    return;
   }
 
   // 静态文件

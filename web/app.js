@@ -129,6 +129,7 @@ const state = {
   zoom: 90, cross: null, viewOffset: 0, drag: null,
   errStreak: 0, intradayLoading: false,
   demo: null,
+  quote5: null, trace: null,       // kline 详情页右栏：五档盘口 / 成交明细
 };
 
 const $ = (s) => document.querySelector(s);
@@ -242,6 +243,90 @@ async function searchMarket(q) {
   const viaDirect = await withTimeout(`http://121.43.127.134:8066/dapanv3/quota/stockDictSearch?${qs}`);
   if (viaDirect) return viaDirect;
   return null;
+}
+
+/* ================= 五档盘口 + 成交明细（kline 详情页右栏，上游 dapanv3） ================= */
+const Q5_FIELDS = ["24", "25", "26", "27", "28", "29", "150", "151", "154", "155", "30", "31", "32", "33", "34", "35", "152", "153", "156", "157"];
+async function dapanFetch(path, directUrl, directBody) {
+  const withTimeout = async (url, opts) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch(url, { cache: "no-store", signal: ctrl.signal, ...opts });
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  };
+  try {
+    const j = await withTimeout(path);
+    if (j && j.code === 200) return j.data;
+  } catch (e) {}
+  if (location.protocol !== "https:") { // dapanv3 免鉴权但仅 http，https 页面只能走本地代理
+    try {
+      const j = await withTimeout(directUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(directBody) });
+      if (j && j.status_code === 0) return j.data;
+    } catch (e) {}
+  }
+  return null;
+}
+async function fetchQuote5(market, code) {
+  return dapanFetch(`/api/quote5?market=${market}&code=${code}`,
+    "http://121.43.127.134:8066/dapanv3/quota/aQuoteMultiLastCalc",
+    { code_list: [{ market, codes: [code] }], trade_class: "intraday", data_fields: Q5_FIELDS });
+}
+async function fetchTrace(market, code) {
+  return dapanFetch(`/api/trace?market=${market}&code=${code}`,
+    "http://121.43.127.134:8066/dapanv3/common-hq/quote/v1/single_trace",
+    { code_list: [{ market, codes: [code] }], time_range: { type: "end_count", count: 100, end_time: 0 } });
+}
+function parseQuote5(data) {
+  const q = data && data.quote_data && data.quote_data[0];
+  if (!q || !Array.isArray(q.value) || !Array.isArray(q.value[0])) return null;
+  const f = {}, row = q.value[0];
+  (q.data_fields || []).forEach((n, i) => { f[n] = i; });
+  // 买1-5：24/26/28/150/154 价 + 25/27/29/151/155 量；卖1-5：30/32/34/152/156 + 31/33/35/153/157；量股→手
+  const lv = (pf, vf) => { const price = row[f[pf]], vol = row[f[vf]]; return price && vol ? { price, vol: Math.ceil(vol / 100) } : null; };
+  const take = (pairs) => pairs.map(([p, v]) => lv(p, v)).filter(Boolean);
+  return { buy: take([["24", "25"], ["26", "27"], ["28", "29"], ["150", "151"], ["154", "155"]]),
+    sell: take([["30", "31"], ["32", "33"], ["34", "35"], ["152", "153"], ["156", "157"]]) };
+}
+function parseTrace(data) {
+  const q = data && data.quote_data && data.quote_data[0];
+  if (!q || !Array.isArray(q.value)) return [];
+  // 行 = [毫秒时间, 价, 方向(1买/2卖/其它中性), 当日累计量, 单笔量]；展示单笔量（≥100 股折手）
+  return q.value.slice(-100).map((r) => ({ t: r[0], price: r[1], dir: r[2] === 1 ? "b" : r[2] === 2 ? "s" : "",
+    vol: r[4] >= 100 ? Math.round(r[4] / 100) : r[4] })).reverse();
+}
+function renderQuoteSide() {
+  const side = $("#kside");
+  if (!side) return;
+  if (state.quote5 || state.trace) side.hidden = false;
+  if (state.quote5) {
+    const row = (lab, x, c) => x ? `<div class="row"><span class="lab">${lab}</span><span class="prc ${c}">${fmt(x.price)}</span><span class="vol">${x.vol}手</span></div>` : "";
+    $("#q5Box").innerHTML =
+      state.quote5.sell.slice().reverse().map((x, i) => row("卖" + (5 - i), x, "down")).join("") +
+      state.quote5.buy.map((x, i) => row("买" + (i + 1), x, "up")).join("");
+  }
+  if (state.trace) {
+    const tb = $("#traceBox");
+    tb.innerHTML = state.trace.length ? state.trace.map((r) => {
+      const d = new Date(r.t);
+      const tm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+      return `<div class="row"><span class="tm">${tm}</span><span class="prc ${r.dir === "b" ? "up" : r.dir === "s" ? "down" : ""}">${fmt(r.price)}</span><span class="vl">${r.vol}</span></div>`;
+    }).join("") : `<div class="trace-empty">暂无成交</div>`;
+    tb.scrollTop = 0; // 最新在上
+  }
+}
+async function loadQuoteSide() {
+  const code = state.modal, mkt = state.klineMarket;
+  const side = $("#kside");
+  if (!side || !code || !/^\d{6}$/.test(code) || state.mode === "demo") return;
+  if (state.modalType !== "INTRADAY") return; // 日K 视图右栏隐藏，不拉数据
+  const [q5, tr] = await Promise.allSettled([fetchQuote5(mkt, code), fetchTrace(mkt, code)]);
+  if (q5.status === "fulfilled" && q5.value) state.quote5 = parseQuote5(q5.value);
+  if (tr.status === "fulfilled" && tr.value) state.trace = parseTrace(tr.value);
+  if (!state.quote5 && !state.trace && !side.dataset.ok) return; // 两种数据首次皆失败 → 保持隐藏
+  side.dataset.ok = "1";
+  renderQuoteSide();
 }
 
 /* ================= 交易时段（Asia/Shanghai） ================= */
@@ -843,13 +928,19 @@ function bindChrome() {
   });
   $("#posterCopyLink") && $("#posterCopyLink").addEventListener("click", () => copyShare());
 }
+/* 日K 视图隐藏左右面板（报价面板/盘口明细），图表占满整行 */
+function syncKlinePanels() {
+  document.body.classList.toggle("kdaily", PAGE === "kline" && state.modalType === "DAILY");
+}
 async function switchChartType(t) {
   $$(".tab[data-t]").forEach((x) => x.classList.remove("on"));
   t.classList.add("on");
   state.modalType = t.dataset.t; state.zoom = 90; state.cross = null; state.viewOffset = 0;
+  syncKlinePanels();
   if (PAGE === "kline") setPageParams({ s: state.modal, m: state.klineMarket, t: state.modalType });
   renderChart();
   const code = state.modal;
+  if (state.modalType === "INTRADAY" && code) loadQuoteSide().catch(() => {});
   if (state.modalType === "INTRADAY" && code && !state.intraday[code]) {
     const mkt = state.klineMarket || (getSel().find((x) => x.code === code) || {}).market || "17";
     state.intradayLoading = true; renderChart();
@@ -857,8 +948,7 @@ async function switchChartType(t) {
     state.intradayLoading = false; renderChart();
   }
 }
-function chartHover(e) {
-  const cv = e.target, rect = cv.getBoundingClientRect();
+function chartHover(e) {  const cv = e.target, rect = cv.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   // 拖拽平移：左右拖动查看历史/未来
   if (state.drag) {
@@ -880,7 +970,7 @@ function chartHover(e) {
     const d = cv._intra;
     if (d) {
       let bd = Infinity;
-      d.pts.forEach((p, i) => { const dd = Math.abs(d.X(p[0]) - mx); if (dd < bd) { bd = dd; idx = i; } });
+      d.pts.forEach((p, i) => { const dd = Math.abs(d.MX(i) - mx); if (dd < bd) { bd = dd; idx = i; } });
       if (bd > 40) idx = null;
     }
   }
@@ -1190,6 +1280,8 @@ async function initKlinePage() {
   state.klineMarket = q.m || "17";
   state.modal = code || null;
   state.modalType = q.t === "INTRADAY" ? "INTRADAY" : "DAILY";
+  syncKlinePanels();
+  state.quote5 = null; state.trace = null;
   state.zoom = 90; state.cross = null; state.viewOffset = 0;
   $$(".tab[data-t]").forEach((x) => x.classList.toggle("on", x.dataset.t === state.modalType));
   if (!code || !/^\d{6}$/.test(code)) {
@@ -1221,6 +1313,11 @@ async function initKlinePage() {
   if (state.modalType === "INTRADAY") { try { await fetchKline(state.klineMarket, code, "INTRADAY"); } catch (e) {} }
   updateKlineMeta();
   renderChart();
+  // 右栏（五档盘口/成交明细）：首载 + 盘中 5 秒 / 盘外 30 秒轮询
+  loadQuoteSide().catch(() => {});
+  (function pollQuote() {
+    setTimeout(async () => { try { await loadQuoteSide(); } catch (e) {} pollQuote(); }, shNow().inSession ? 5000 : 30000);
+  })();
 }
 /* 独立页左侧面板 + 顶部大字报价 */
 function updateKlineMeta() {
